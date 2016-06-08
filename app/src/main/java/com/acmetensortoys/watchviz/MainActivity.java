@@ -22,6 +22,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -39,8 +40,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Queue;
 
 import org.jtransforms.fft.FloatFFT_1D;
 
@@ -52,10 +55,108 @@ public class MainActivity extends WearableActivity
     private BoxInsetLayout mOuterContainer;
     private LinearLayout mInnerContainer;
     private TextView mTextView, mClockView, mDebugView;
-    private boolean doDebug = false;
 
     private SurfaceView cyclersv;
     private Thread cycler;
+
+    public abstract static class RenderCB {
+        boolean doDebug = false;
+
+        abstract public void render(Canvas c, float[] a);
+        public void setDebug(boolean b) { doDebug = b; }
+        public final void toggleDebug() { setDebug(!doDebug); }
+    }
+    private final RenderCB renderWholeScreenMax = new RenderCB() {
+        private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
+
+        public void setDebug(boolean d) {
+            super.setDebug(d);
+            if(!d) {
+                mDebugView.post(new Runnable() {
+                    public void run() {
+                        mDebugView.setVisibility(View.GONE);
+                    }
+                } );
+            } else {
+                mDebugView.post(new Runnable() {
+                    public void run() {
+                        mDebugView.setVisibility(View.VISIBLE);
+                    }
+                } );
+            }
+        }
+
+        public void render(Canvas cv, float[] samples) {
+            float msamp = 0.0f;
+            int mix = -1;
+            for (int i = 0; i < samples.length; i += 2) {
+                if (samples[i] > msamp) {
+                    msamp = samples[i];
+                    mix = i;
+                }
+            }
+            if (doDebug) {
+                final float fmsamp = msamp;
+                final int fmix = mix;
+                mDebugView.post(new Runnable() {
+                    public void run() {
+                        mDebugView.setText(String.format(Locale.US, "%1$8.1E @ %2$d", fmsamp, fmix));
+                    }
+                });
+            }
+            int canvalpha = msamp > 3 ? 255 : (int) (msamp * 64) + 63; // XXX wtf scale?
+
+            int c = Color.HSVToColor(hsv);
+            hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
+
+            cv.drawColor(c);
+            cv.drawColor(Color.rgb(canvalpha, canvalpha, canvalpha), PorterDuff.Mode.MULTIPLY);
+        }
+    };
+    private final RenderCB renderGrid = new RenderCB() {
+        final Paint p = new Paint();
+        final Paint dbp = new Paint();
+        float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
+
+        // Ahahaha; anonymous classes of course have anonymous constructors.  How do you like that?
+        {
+            dbp.setColor(Color.WHITE);
+        }
+
+        public void render(Canvas cv, float[] samples) {
+            int c = Color.HSVToColor(hsv);
+            hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
+            p.setColor(c);
+
+            int rxs = cv.getWidth() / 8;
+            int rys = cv.getHeight() / 8;
+            for (int rx = 0; rx < 8; rx++) {
+                for (int ry = 0; ry < 8; ry++) {
+                    float x = Math.abs(samples[((rx * 8 + ry) << 2) + 32]) * 64;
+                    int b = x > 255 ? 255 : (int)x;
+                    p.setAlpha(b > 223 ? 255 : b + 32);
+                    cv.drawRect(rx * rxs, ry * rys, (rx + 1) * rxs - 1, (ry + 1) * rys - 1, p);
+                    if(doDebug) {
+                        cv.drawText(Integer.toHexString(b), rx*rxs + rxs/2, ry*rys + rys/2, dbp);
+                    }
+                }
+            }
+        }
+    };
+
+    private RenderCB cyclercb;
+    private Queue<RenderCB> cyclercbq = new ArrayDeque<>();
+    {
+        cyclercbq.add(renderGrid);
+        cyclercb = renderWholeScreenMax;
+    }
+    private void nextCyclerCB() {
+        synchronized(this) {
+            cyclercb.setDebug(false);
+            cyclercbq.add(cyclercb);
+            cyclercb = cyclercbq.remove();
+        }
+    }
 
     // The surface to which this callback is bound is created only after audio permissions
     // have been checked.  We therefore can simply start in the created callback.  Stopping
@@ -68,7 +169,6 @@ public class MainActivity extends WearableActivity
             c.drawColor(Color.RED);
             h.unlockCanvasAndPost(c);
 
-            final TextView dbv = mDebugView;
             final AudioRecord ar = new AudioRecord(
                     MediaRecorder.AudioSource.MIC,
                     11025, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT, 2048);
@@ -76,49 +176,30 @@ public class MainActivity extends WearableActivity
 
             cycler = new Thread() {
                 public void run() {
-                    float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
                     float[] samples = new float[512];
                     FloatFFT_1D fft = new FloatFFT_1D(samples.length);
 
-                    /*
-                     * Debug: triangle wave
-                     *
-                    for(int i = 0; i < samples.length; i++) {
-                        samples[i] = (float)((i % 16) - 8) / 8;
-                        if (i % 32 >= 16) { samples[i] *= -1; }
-                    }
-                    */
                     ar.startRecording();
                     while (!Thread.interrupted()) {
+                        final RenderCB rcb;
                         ar.read(samples, 0, samples.length, AudioRecord.READ_BLOCKING);
+                        synchronized(this) {
+                            rcb = cyclercb;
+                        }
+                        /*
+                         * Debug: triangle wave
+                         */
+                        /*
+                        for(int i = 0; i < samples.length; i++) {
+                            samples[i] = (float)((i % 16) - 8) / 8;
+                            if (i % 32 >= 16) { samples[i] *= -1; }
+                        }
+                        */
                         fft.realForward(samples);
 
-                        float msamp = 0.0f;
-                        int mix = -1;
-                        for (int i = 0; i < samples.length; i += 2) {
-                            if (samples[i] > msamp) {
-                                msamp = samples[i];
-                                mix = i;
-                            }
-                        }
-                        if (doDebug) {
-                            final float fmsamp = msamp;
-                            final int fmix = mix;
-                            dbv.post(new Runnable() {
-                                public void run() {
-                                    dbv.setText(String.format(Locale.US, "%1$8.1E @ %2$d", fmsamp, fmix));
-                                }
-                            });
-                        }
-
-                        int canvalpha = msamp > 3 ? 255 : (int) (msamp * 64) + 63; // XXX wtf scale?
-
-                        int c = Color.HSVToColor(hsv);
-                        hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
-
                         Canvas cv = h.lockCanvas();
-                        cv.drawColor(c);
-                        cv.drawColor(Color.rgb(canvalpha, canvalpha, canvalpha), PorterDuff.Mode.MULTIPLY);
+                        cv.drawColor(Color.BLACK);
+                        rcb.render(cv,samples);
                         h.unlockCanvasAndPost(cv);
 
                         // try { Thread.sleep(100); } catch (InterruptedException e) { break; }
@@ -146,8 +227,24 @@ public class MainActivity extends WearableActivity
     private void createSurface() {
         Log.d("createSurface", "top");
         cyclersv = new SurfaceView(this);
-
         cyclersv.getHolder().addCallback(shc);
+        cyclersv.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                final RenderCB rcb;
+                synchronized(this) {
+                    rcb = cyclercb;
+                }
+                rcb.toggleDebug();
+            }
+        });
+        cyclersv.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        nextCyclerCB();
+                        return true;
+                    }
+                });
 
         mInnerContainer.addView(cyclersv, -1,
                 new ViewGroup.LayoutParams(
@@ -164,6 +261,7 @@ public class MainActivity extends WearableActivity
         }
         Log.d("removeSurface", "removing view");
         mInnerContainer.removeView(cyclersv);
+        cyclersv = null;
         Log.d("removeSurface", "done");
     }
 
@@ -186,6 +284,12 @@ public class MainActivity extends WearableActivity
     public void onStart() {
         Log.d("onStart", "top");
         super.onStart();
+    }
+
+    @Override
+    public void onResume() {
+        Log.d("onResume", "top");
+        super.onResume();
 
         if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -234,14 +338,10 @@ public class MainActivity extends WearableActivity
             mOuterContainer.setBackgroundColor(black);
             mTextView.setTextColor(white);
             mClockView.setTextColor(white);
-            mDebugView.setVisibility(View.GONE);
-            doDebug = false;
         } else {
             mOuterContainer.setBackground(null);
             mTextView.setTextColor(black);
             mClockView.setTextColor(black);
-            mDebugView.setVisibility(View.VISIBLE);
-            doDebug = true;
         }
     }
 
