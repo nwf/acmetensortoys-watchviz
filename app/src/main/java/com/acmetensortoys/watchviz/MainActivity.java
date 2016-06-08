@@ -285,29 +285,29 @@ public class MainActivity extends WearableActivity
     public void onStart() {
         Log.d("onStart", "top");
         super.onStart();
+
+        // Ask once at startup
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1);
+        } else {
+            createSurface();
+        }
     }
 
     @Override
     public void onResume() {
         Log.d("onResume", "top");
         super.onResume();
-
-        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED) {
-            createSurface();
-        } else {
-            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1);
-        }
     }
 
     @Override
     public void onRequestPermissionsResult(int rq, @NonNull String[] ps, @NonNull int[] rs) {
         if(rq == 1) {
-            if (rs[0] == 1) {
+            if (rs[0] == PackageManager.PERMISSION_GRANTED) {
                 createSurface();
             } else {
-                //TODO: Something else
-                throw new RuntimeException("asdf");
+                mDebugView.setText("No audio");
             }
         }
     }
@@ -349,13 +349,13 @@ public class MainActivity extends WearableActivity
     @Override
     public void onPause() {
         Log.d("onPause", "top");
-        removeSurface();
         super.onPause();
     }
 
     @Override
     public void onStop() {
         Log.d("onStop", "top");
+        removeSurface();
         super.onStop();
     }
 
