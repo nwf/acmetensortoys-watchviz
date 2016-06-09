@@ -61,104 +61,23 @@ public class MainActivity extends WearableActivity
     private SurfaceView cyclersv;
     private Thread cycler;
 
-    public abstract static class RenderCB {
-        boolean doDebug = false;
-
-        abstract public void render(Canvas c, float[] a);
-        public void setDebug(boolean b) { doDebug = b; }
-        public final void toggleDebug() { setDebug(!doDebug); }
-    }
-    private final RenderCB renderWholeScreenMax = new RenderCB() {
-        private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
-
-        public void setDebug(boolean d) {
-            super.setDebug(d);
-            if(!d) {
-                mDebugView.post(new Runnable() {
-                    public void run() {
-                        mDebugView.setVisibility(View.GONE);
-                    }
-                } );
-            } else {
-                mDebugView.post(new Runnable() {
-                    public void run() {
-                        mDebugView.setVisibility(View.VISIBLE);
-                    }
-                } );
-            }
-        }
-
-        public void render(Canvas cv, float[] samples) {
-            float msamp = 0.0f;
-            int mix = -1;
-            for (int i = 0; i < samples.length/2; i += 2) {
-                if (samples[i] > msamp) {
-                    msamp = samples[i];
-                    mix = i;
-                }
-            }
-            if (doDebug) {
-                final float fmsamp = msamp;
-                final int fmix = mix;
-                mDebugView.post(new Runnable() {
-                    public void run() {
-                        mDebugView.setText(String.format(Locale.US, "%1$8.1E @ %2$d", fmsamp, fmix));
-                    }
-                });
-            }
-            int canvalpha = msamp > 3 ? 255 : (int) (msamp * 64) + 63; // XXX wtf scale?
-
-            int c = Color.HSVToColor(hsv);
-            hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
-
-            cv.drawColor(c);
-            cv.drawColor(Color.rgb(canvalpha, canvalpha, canvalpha), PorterDuff.Mode.MULTIPLY);
-        }
-    };
-    private final RenderCB renderGrid = new RenderCB() {
-        final Paint p = new Paint();
-        final Paint dbp = new Paint();
-        float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
-
-        // Ahahaha; anonymous classes of course have anonymous constructors.  How do you like that?
-        {
-            dbp.setColor(Color.WHITE);
-        }
-
-        public void render(Canvas cv, float[] samples) {
-            int c = Color.HSVToColor(hsv);
-            hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
-            p.setColor(c);
-
-            int rxs = cv.getWidth() / 8;
-            int rys = cv.getHeight() / 8;
-            for (int rx = 0; rx < 8; rx++) {
-                for (int ry = 0; ry < 8; ry++) {
-                    int ix = (rx * 8 + ry) * 4;
-                    float x = (Math.abs(samples[ix]) + Math.abs(samples[ix+2])) * 32;
-                    int b = x > 255 ? 255 : (int)x;
-                    p.setAlpha(b > 223 ? 255 : b + 32);
-                    cv.drawRect(rx * rxs, ry * rys, (rx + 1) * rxs - 1, (ry + 1) * rys - 1, p);
-                    if(doDebug) {
-                        cv.drawText(Integer.toHexString(b), rx*rxs + rxs/2, ry*rys + rys/2, dbp);
-                    }
-                }
-            }
-        }
-    };
-
     private RenderCB cyclercb;
-    private Queue<RenderCB> cyclercbq = new ArrayDeque<>();
-    {
-        cyclercbq.add(renderGrid);
-        cyclercb = renderWholeScreenMax;
-    }
+    private Queue<Class<? extends RenderCB>> cyclercbq = new ArrayDeque<>();
     private void nextCyclerCB() {
         synchronized(this) {
-            cyclercb.setDebug(false);
-            cyclercbq.add(cyclercb);
-            cyclercb = cyclercbq.remove();
+            Class <? extends RenderCB> next = cyclercbq.remove();
+            cyclercbq.add(next);
+            try {
+                cyclercb = next.getConstructor().newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            mDebugView.setText(cyclercb.getClass().getSimpleName().substring(0,10));
         }
+    }
+    {
+        cyclercbq.add(RenderWholeScreenMax.class);
+        cyclercbq.add(RenderGrid.class);
     }
 
     // The surface to which this callback is bound is created only after audio permissions
@@ -229,6 +148,9 @@ public class MainActivity extends WearableActivity
 
     private void createSurface() {
         Log.d("createSurface", "top");
+
+        nextCyclerCB();
+
         cyclersv = new SurfaceView(this);
         cyclersv.getHolder().addCallback(shc);
         cyclersv.setOnClickListener(new View.OnClickListener(){
@@ -238,7 +160,7 @@ public class MainActivity extends WearableActivity
                 synchronized(this) {
                     rcb = cyclercb;
                 }
-                rcb.toggleDebug();
+                rcb.onClick();
             }
         });
         cyclersv.setOnLongClickListener(new View.OnLongClickListener() {
@@ -344,10 +266,12 @@ public class MainActivity extends WearableActivity
             mOuterContainer.setBackgroundColor(black);
             mTextView.setTextColor(white);
             mClockView.setTextColor(white);
+            mDebugView.setTextColor(white);
         } else {
             mOuterContainer.setBackground(null);
             mTextView.setTextColor(black);
             mClockView.setTextColor(black);
+            mDebugView.setTextColor(black);
         }
     }
 
