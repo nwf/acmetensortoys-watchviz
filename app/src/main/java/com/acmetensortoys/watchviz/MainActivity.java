@@ -254,7 +254,7 @@ public class MainActivity extends WearableActivity
     @Override
     public void onUpdateAmbient() {
         super.onUpdateAmbient();
-        updateDisplay();
+        mClockView.setText(AMBIENT_DATE_FORMAT.format(new Date()));
     }
 
     @Override
