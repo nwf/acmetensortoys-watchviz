@@ -105,9 +105,6 @@ public class MainActivity extends WearableActivity
                     while (!Thread.interrupted()) {
                         final RenderCB rcb;
                         ar.read(samples, 0, samples.length, AudioRecord.READ_BLOCKING);
-                        synchronized(this) {
-                            rcb = cyclercb;
-                        }
                         /*
                          * Debug: triangle wave
                          */
@@ -119,7 +116,16 @@ public class MainActivity extends WearableActivity
                         */
                         fft.realForward(samples);
 
+                        synchronized(this) {
+                            rcb = cyclercb;
+                        }
+
                         Canvas cv = h.lockCanvas();
+                        if (cv == null) {
+                            // the surface must have been destroyed out from under us;
+                            // just stop here.
+                            break;
+                        }
                         cv.drawColor(Color.BLACK);
                         rcb.render(cv,samples);
                         h.unlockCanvasAndPost(cv);
