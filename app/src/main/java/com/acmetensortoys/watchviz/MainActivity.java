@@ -19,6 +19,8 @@
 package com.acmetensortoys.watchviz;
 
 import android.Manifest;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -293,6 +295,9 @@ public class MainActivity extends WearableActivity
         } else {
             createSurface();
         }
+
+        Log.d("onStart", "BLE: " + getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE));
+        // final BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
     }
 
     @Override

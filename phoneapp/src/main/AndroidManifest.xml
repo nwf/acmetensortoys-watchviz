@@ -3,6 +3,7 @@
     package="com.acmetensortoys.watchviz">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
 
     <application
         android:allowBackup="true"
