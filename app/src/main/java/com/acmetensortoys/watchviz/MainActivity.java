@@ -89,7 +89,7 @@ public class MainActivity extends WearableActivity
         public void render(Canvas cv, float[] samples) {
             float msamp = 0.0f;
             int mix = -1;
-            for (int i = 0; i < samples.length; i += 2) {
+            for (int i = 0; i < samples.length/2; i += 2) {
                 if (samples[i] > msamp) {
                     msamp = samples[i];
                     mix = i;
@@ -132,7 +132,8 @@ public class MainActivity extends WearableActivity
             int rys = cv.getHeight() / 8;
             for (int rx = 0; rx < 8; rx++) {
                 for (int ry = 0; ry < 8; ry++) {
-                    float x = Math.abs(samples[((rx * 8 + ry) << 2) + 32]) * 64;
+                    int ix = (rx * 8 + ry) * 4;
+                    float x = (Math.abs(samples[ix]) + Math.abs(samples[ix+2])) * 32;
                     int b = x > 255 ? 255 : (int)x;
                     p.setAlpha(b > 223 ? 255 : b + 32);
                     cv.drawRect(rx * rxs, ry * rys, (rx + 1) * rxs - 1, (ry + 1) * rys - 1, p);
