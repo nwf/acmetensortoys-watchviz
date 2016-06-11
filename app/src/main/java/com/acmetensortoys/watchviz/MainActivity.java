@@ -41,6 +41,9 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.acmetensortoys.watchviz.render.Grid;
+import com.acmetensortoys.watchviz.render.WholeMax;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.Date;
@@ -76,8 +79,8 @@ public class MainActivity extends WearableActivity
         }
     }
     {
-        cyclercbq.add(RenderWholeScreenMax.class);
-        cyclercbq.add(RenderGrid.class);
+        cyclercbq.add(WholeMax.class);
+        cyclercbq.add(Grid.class);
     }
 
     // The surface to which this callback is bound is created only after audio permissions

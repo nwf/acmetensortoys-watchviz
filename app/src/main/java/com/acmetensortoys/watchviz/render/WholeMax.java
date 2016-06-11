@@ -1,18 +1,20 @@
-package com.acmetensortoys.watchviz;
+package com.acmetensortoys.watchviz.render;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 
+import com.acmetensortoys.watchviz.RenderCB;
+
 import java.util.Locale;
 
-public final class RenderWholeScreenMax extends RenderCB {
+public final class WholeMax extends RenderCB {
     private boolean doDebug;
     private final Paint dbp = new Paint();
     private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
 
-    public RenderWholeScreenMax()
+    public WholeMax()
     {
         dbp.setColor(Color.WHITE);
     }
@@ -26,7 +28,7 @@ public final class RenderWholeScreenMax extends RenderCB {
     public void render(Canvas cv, float[] samples) {
         float msamp = 0.0f;
         int mix = -1;
-            /* Restrict search to lowest half in agreement with RenderGrid */
+            /* Restrict search to lowest half in agreement with Grid */
         for (int i = 0; i < samples.length/2; i += 2) {
             if (samples[i] > msamp) {
                 msamp = samples[i];

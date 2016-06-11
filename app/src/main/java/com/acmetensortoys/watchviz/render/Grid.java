@@ -1,16 +1,18 @@
-package com.acmetensortoys.watchviz;
+package com.acmetensortoys.watchviz.render;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-public final class RenderGrid extends RenderCB {
+import com.acmetensortoys.watchviz.RenderCB;
+
+public final class Grid extends RenderCB {
     private boolean doDebug;
     private final Paint p = new Paint();
     private final Paint dbp = new Paint();
     private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
 
-    public RenderGrid()
+    public Grid()
     {
         dbp.setColor(Color.WHITE);
     }
