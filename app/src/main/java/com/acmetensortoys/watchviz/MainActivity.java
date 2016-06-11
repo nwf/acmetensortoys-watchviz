@@ -47,8 +47,8 @@ import com.acmetensortoys.watchviz.render.WholeMax;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.Date;
+import java.util.Deque;
 import java.util.Locale;
-import java.util.Queue;
 
 import org.jtransforms.fft.FloatFFT_1D;
 
@@ -65,17 +65,27 @@ public class MainActivity extends WearableActivity
     private Thread cycler;
 
     private RenderCB cyclercb;
-    private Queue<Class<? extends RenderCB>> cyclercbq = new ArrayDeque<>();
+    private Deque<Class<? extends RenderCB>> cyclercbq = new ArrayDeque<>();
+    private void _setCyclerCB(Class<? extends RenderCB> next) {
+        try {
+            cyclercb = next.getConstructor().newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        mDebugView.setText(cyclercb.getClass().getSimpleName().substring(0,10));
+    }
     private void nextCyclerCB() {
         synchronized(this) {
-            Class <? extends RenderCB> next = cyclercbq.remove();
-            cyclercbq.add(next);
-            try {
-                cyclercb = next.getConstructor().newInstance();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            mDebugView.setText(cyclercb.getClass().getSimpleName().substring(0,10));
+            Class <? extends RenderCB> next = cyclercbq.removeFirst();
+            cyclercbq.addLast(next);
+            _setCyclerCB(next);
+        }
+    }
+    private void prevCyclerCB() {
+        synchronized(this) {
+            Class <? extends RenderCB> next = cyclercbq.removeLast();
+            cyclercbq.addFirst(next);
+            _setCyclerCB(next);
         }
     }
     {
@@ -166,10 +176,14 @@ public class MainActivity extends WearableActivity
             @Override
             public void onClick(View v) {
                 final RenderCB rcb;
-                synchronized(this) {
-                    rcb = cyclercb;
-                }
+                synchronized(this) { rcb = cyclercb; }
                 rcb.onClick();
+            }
+        });
+        mTextView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                prevCyclerCB();
             }
         });
         cyclersv.setOnLongClickListener(new View.OnLongClickListener() {
