@@ -57,6 +57,9 @@ public class MainActivity extends WearableActivity
     private static final SimpleDateFormat AMBIENT_DATE_FORMAT =
             new SimpleDateFormat("HH:mm", Locale.US);
 
+    private static final int AUDIO_RECORDER_BUFFER_SIZE = 2048;
+    private static final int AUDIO_SAMPLES = 512;
+
     private BoxInsetLayout mOuterContainer;
     private LinearLayout mInnerContainer;
     private TextView mTextView, mClockView, mDebugView;
@@ -107,18 +110,24 @@ public class MainActivity extends WearableActivity
 
             final AudioRecord ar = new AudioRecord(
                     MediaRecorder.AudioSource.MIC,
-                    11025, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT, 2048);
+                    11025, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT,
+                    AUDIO_RECORDER_BUFFER_SIZE);
             Log.d("shc", "Audio session ID:" + ar.getAudioSessionId());
 
             cycler = new Thread() {
                 public void run() {
-                    float[] samples = new float[512];
-                    FloatFFT_1D fft = new FloatFFT_1D(samples.length);
+                    // Raw audio samples
+                    float[] samples = new float[AUDIO_SAMPLES];
+
+                    // FFT data and engine
+                    float[] fft = new float[AUDIO_SAMPLES];
+                    FloatFFT_1D fftc = new FloatFFT_1D(AUDIO_SAMPLES);
 
                     ar.startRecording();
                     while (!Thread.interrupted()) {
                         final RenderCB rcb;
                         ar.read(samples, 0, samples.length, AudioRecord.READ_BLOCKING);
+                        System.arraycopy(samples,0,fft,0,AUDIO_SAMPLES);
                         /*
                          * Debug: triangle wave
                          */
@@ -128,7 +137,8 @@ public class MainActivity extends WearableActivity
                             if (i % 32 >= 16) { samples[i] *= -1; }
                         }
                         */
-                        fft.realForward(samples);
+
+                        fftc.realForward(fft);
 
                         synchronized(this) {
                             rcb = cyclercb;
@@ -141,7 +151,7 @@ public class MainActivity extends WearableActivity
                             break;
                         }
                         cv.drawColor(Color.BLACK);
-                        rcb.render(cv,samples);
+                        rcb.render(cv,samples,fft);
                         h.unlockCanvasAndPost(cv);
 
                         // try { Thread.sleep(100); } catch (InterruptedException e) { break; }

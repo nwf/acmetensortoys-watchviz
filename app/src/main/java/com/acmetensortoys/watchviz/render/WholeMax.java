@@ -25,13 +25,13 @@ public final class WholeMax extends RenderCB {
     }
 
     @Override
-    public void render(Canvas cv, float[] samples) {
+    public void render(Canvas cv, float[] audio, float[] fft) {
         float msamp = 0.0f;
         int mix = -1;
             /* Restrict search to lowest half in agreement with Grid */
-        for (int i = 0; i < samples.length/2; i += 2) {
-            if (samples[i] > msamp) {
-                msamp = samples[i];
+        for (int i = 0; i < fft.length/2; i += 2) {
+            if (fft[i] > msamp) {
+                msamp = fft[i];
                 mix = i;
             }
         }
