@@ -72,7 +72,8 @@ public class MainActivity extends WearableActivity
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        mDebugView.setText(cyclercb.getClass().getSimpleName().substring(0,10));
+        String name = cyclercb.getClass().getSimpleName();
+        mDebugView.setText(name.substring(0,Math.min(10,name.length())));
     }
     private void nextCyclerCB() {
         synchronized(this) {
