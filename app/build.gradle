@@ -26,9 +26,10 @@ dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.google.android.support:wearable:2.0.0-alpha1'
     compile 'com.google.android.gms:play-services-wearable:9.0.2'
+    compile project(':vizlib')
 }
 
 dependencies {
     // compile 'com.github.wendykierp:JTransforms:3.1' // brought just the bit we need in
-    compile 'org.apache.commons:commons-math3:+'
+    // compile 'org.apache.commons:commons-math3:+' // moved to java.lang.Math instead
 }

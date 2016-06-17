@@ -1,1 +1,1 @@
-include ':app', ':phoneapp'
+include ':vizlib', ':app', ':phoneapp'

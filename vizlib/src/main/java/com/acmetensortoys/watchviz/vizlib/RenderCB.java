@@ -1,4 +1,4 @@
-package com.acmetensortoys.watchviz;
+package com.acmetensortoys.watchviz.vizlib;
 
 import android.graphics.Canvas;
 

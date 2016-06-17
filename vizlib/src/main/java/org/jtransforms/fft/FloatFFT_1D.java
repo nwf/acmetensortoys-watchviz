@@ -27,7 +27,8 @@
 package org.jtransforms.fft;
 
 import org.jtransforms.utils.CommonUtils;
-import static org.apache.commons.math3.util.FastMath.*;
+// import static org.apache.commons.math3.util.FastMath.*;
+import static java.lang.Math.*;
 
 /**
  * Computes 1D Discrete Fourier Transform (DFT) of complex and real, single

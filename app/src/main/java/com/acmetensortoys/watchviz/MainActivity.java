@@ -19,208 +19,65 @@
 package com.acmetensortoys.watchviz;
 
 import android.Manifest;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.wearable.activity.WearableActivity;
 import android.support.wearable.view.BoxInsetLayout;
 import android.util.Log;
-import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.acmetensortoys.watchviz.render.Grid;
-import com.acmetensortoys.watchviz.render.WholeMax;
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayDeque;
 import java.util.Date;
-import java.util.Deque;
 import java.util.Locale;
 
-import org.jtransforms.fft.FloatFFT_1D;
+import com.acmetensortoys.watchviz.vizlib.AudioCanvas;
 
 public class MainActivity extends WearableActivity
 {
     private static final SimpleDateFormat AMBIENT_DATE_FORMAT =
             new SimpleDateFormat("HH:mm", Locale.US);
 
-    private static final int AUDIO_RECORDER_BUFFER_SIZE = 2048;
-    private static final int AUDIO_SAMPLES = 512;
-
     private BoxInsetLayout mOuterContainer;
     private LinearLayout mInnerContainer;
     private TextView mTextView, mClockView, mDebugView;
-
-    private SurfaceView cyclersv;
-    private Thread cycler;
-
-    private RenderCB cyclercb;
-    private Deque<Class<? extends RenderCB>> cyclercbq = new ArrayDeque<>();
-    private void _setCyclerCB(Class<? extends RenderCB> next) {
-        try {
-            cyclercb = next.getConstructor().newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        String name = cyclercb.getClass().getSimpleName();
-        mDebugView.setText(name.substring(0,Math.min(10,name.length())));
-    }
-    private void nextCyclerCB() {
-        synchronized(this) {
-            Class <? extends RenderCB> next = cyclercbq.removeFirst();
-            cyclercbq.addLast(next);
-            _setCyclerCB(next);
-        }
-    }
-    private void prevCyclerCB() {
-        synchronized(this) {
-            Class <? extends RenderCB> next = cyclercbq.removeLast();
-            cyclercbq.addFirst(next);
-            _setCyclerCB(next);
-        }
-    }
-    {
-        cyclercbq.add(WholeMax.class);
-        cyclercbq.add(Grid.class);
-    }
-
-    // The surface to which this callback is bound is created only after audio permissions
-    // have been checked.  We therefore can simply start in the created callback.  Stopping
-    // happens in onPause below, which fires before the surface is destroyed.
-    private SurfaceHolder.Callback shc = new SurfaceHolder.Callback() {
-        @Override
-        public void surfaceCreated(final SurfaceHolder h) {
-            Log.d("shc", "Surface Created");
-            Canvas c = h.lockCanvas();
-            c.drawColor(Color.RED);
-            h.unlockCanvasAndPost(c);
-
-            final AudioRecord ar = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    11025, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT,
-                    AUDIO_RECORDER_BUFFER_SIZE);
-            Log.d("shc", "Audio session ID:" + ar.getAudioSessionId());
-
-            cycler = new Thread() {
-                public void run() {
-                    // Raw audio samples
-                    float[] samples = new float[AUDIO_SAMPLES];
-
-                    // FFT data and engine
-                    float[] fft = new float[AUDIO_SAMPLES];
-                    FloatFFT_1D fftc = new FloatFFT_1D(AUDIO_SAMPLES);
-
-                    ar.startRecording();
-                    while (!Thread.interrupted()) {
-                        final RenderCB rcb;
-                        ar.read(samples, 0, samples.length, AudioRecord.READ_BLOCKING);
-                        System.arraycopy(samples,0,fft,0,AUDIO_SAMPLES);
-                        /*
-                         * Debug: triangle wave
-                         */
-                        /*
-                        for(int i = 0; i < samples.length; i++) {
-                            samples[i] = (float)((i % 16) - 8) / 8;
-                            if (i % 32 >= 16) { samples[i] *= -1; }
-                        }
-                        */
-
-                        fftc.realForward(fft);
-
-                        synchronized(this) {
-                            rcb = cyclercb;
-                        }
-
-                        Canvas cv = h.lockCanvas();
-                        if (cv == null) {
-                            // the surface must have been destroyed out from under us;
-                            // just stop here.
-                            break;
-                        }
-                        cv.drawColor(Color.BLACK);
-                        rcb.render(cv,samples,fft);
-                        h.unlockCanvasAndPost(cv);
-
-                        // try { Thread.sleep(100); } catch (InterruptedException e) { break; }
-                    }
-                    ar.stop();
-                    ar.release();
-                    Log.d("cycler", "exit");
-                }
-            };
-            cycler.start();
-        }
-
-        @Override
-        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            Log.d("shc", "Surface Changed");
-            ;
-        }
-
-        @Override
-        public void surfaceDestroyed(SurfaceHolder holder) {
-            Log.d("shc", "Surface Destroyed");
-        }
-    };
+    private SurfaceView mACSurfaceView;
+    private AudioCanvas mAudioCanvas;
 
     private void createSurface() {
         Log.d("createSurface", "top");
-
-        nextCyclerCB();
-
-        cyclersv = new SurfaceView(this);
-        cyclersv.getHolder().addCallback(shc);
-        cyclersv.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v) {
-                final RenderCB rcb;
-                synchronized(this) { rcb = cyclercb; }
-                rcb.onClick();
-            }
-        });
+        mACSurfaceView = new SurfaceView(this);
+        mAudioCanvas = new AudioCanvas(mDebugView, mACSurfaceView);
         mTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                prevCyclerCB();
+                mAudioCanvas.prevCyclerCB();
             }
         });
-        cyclersv.setOnLongClickListener(new View.OnLongClickListener() {
-                    @Override
-                    public boolean onLongClick(View v) {
-                        nextCyclerCB();
-                        return true;
-                    }
-                });
-
-        mInnerContainer.addView(cyclersv, -1,
+        mACSurfaceView.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) { mAudioCanvas.onClick(); }
+        });
+        mACSurfaceView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                mAudioCanvas.nextCyclerCB();
+                return true;
+            }
+        });
+        mInnerContainer.addView(mACSurfaceView, -1,
                 new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     private void removeSurface() {
-        Log.d("removeSurface", "stopping cycler");
-        if(cycler != null) {
-            cycler.interrupt();
-            try { cycler.join(); }
-            catch (InterruptedException e) { Log.d("shc", "IE while join cycler"); }
-        }
         Log.d("removeSurface", "removing view");
-        mInnerContainer.removeView(cyclersv);
-        cyclersv = null;
+        mInnerContainer.removeView(mACSurfaceView);
         Log.d("removeSurface", "done");
     }
 

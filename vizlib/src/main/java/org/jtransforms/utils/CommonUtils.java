@@ -26,7 +26,8 @@
  * ***** END LICENSE BLOCK ***** */
 package org.jtransforms.utils;
 
-import static org.apache.commons.math3.util.FastMath.*;
+// import static org.apache.commons.math3.util.FastMath.*;
+import static java.lang.Math.*;
 
 /**
  * Static utility methods.

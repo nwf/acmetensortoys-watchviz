@@ -1,11 +1,11 @@
-package com.acmetensortoys.watchviz.render;
+package com.acmetensortoys.watchviz.vizlib.render;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 
-import com.acmetensortoys.watchviz.RenderCB;
+import com.acmetensortoys.watchviz.vizlib.RenderCB;
 
 import java.util.Locale;
 
@@ -28,8 +28,8 @@ public final class WholeMax extends RenderCB {
     public void render(Canvas cv, float[] audio, float[] fft) {
         float msamp = 0.0f;
         int mix = -1;
-            /* Restrict search to lowest half in agreement with Grid */
-        for (int i = 0; i < fft.length/2; i += 2) {
+            /* Restrict search to lowest half in agreement with Grid, and skip DC component */
+        for (int i = 2; i < fft.length/2; i += 2) {
             if (fft[i] > msamp) {
                 msamp = fft[i];
                 mix = i;
