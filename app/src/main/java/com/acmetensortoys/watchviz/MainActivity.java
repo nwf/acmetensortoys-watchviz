@@ -16,88 +16,76 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*
+  This is the glue code that provides the Activity that Android interacts with.
+  Most of the actual UI work of interest is in MainGridViewAdapter.
+ */
+
 package com.acmetensortoys.watchviz;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.wearable.activity.WearableActivity;
-import android.support.wearable.view.BoxInsetLayout;
+import android.support.wearable.view.GridViewPager;
 import android.util.Log;
-import android.view.SurfaceView;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import com.acmetensortoys.watchviz.vizlib.AudioCanvas;
 import com.acmetensortoys.watchviz.vizlib.AudioProvider;
-import com.acmetensortoys.watchviz.vizlib.RenderingSelector;
 
 public class MainActivity extends WearableActivity
 {
     private static final SimpleDateFormat AMBIENT_DATE_FORMAT =
             new SimpleDateFormat("HH:mm", Locale.US);
+    private static final int TIME_UPDATE_NOT_AMBIENT_PERIOD = 2000;
 
-    private BoxInsetLayout mOuterContainer;
-    private LinearLayout mInnerContainer;
+    private Handler mHandler;
+    private RelativeLayout mTextContainer;
     private TextView mTextView, mClockView, mDebugView;
-    private SurfaceView mACSurfaceView;
-    private AudioCanvas mAudioCanvas;
     private AudioProvider mAudioProvider = new AudioProvider();
 
-    private void createSurface() {
-        Log.d("createSurface", "top");
-        mACSurfaceView = new SurfaceView(this);
-        mAudioCanvas = new AudioCanvas(mACSurfaceView, mAudioProvider);
+    private GridViewPager mGridView;
 
-        final RenderingSelector rs = new RenderingSelector(mDebugView, mAudioCanvas);
-
-        mTextView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                rs.prevCyclerCB();
-            }
-        });
-        mACSurfaceView.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v) { mAudioCanvas.onClick(); }
-        });
-        mACSurfaceView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                rs.nextCyclerCB();
-                return true;
-            }
-        });
-        mInnerContainer.addView(mACSurfaceView, -1,
-                new ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
+    private void createSurfaces() {
+        Log.d("createSurfaces", "top");
+        MainGridViewAdapter mgva = new MainGridViewAdapter(this, mAudioProvider, mDebugView);
+        mGridView.setOnPageChangeListener(mgva);
+        mGridView.setAdapter(mgva);
+        // Fake the selection callback.  Why doesn't this happen automatically? :(
+        mgva.onPageSelected(mGridView.getCurrentItem().x, mGridView.getCurrentItem().y);
     }
 
-    private void removeSurface() {
-        Log.d("removeSurface", "removing view");
-        mInnerContainer.removeView(mACSurfaceView);
-        Log.d("removeSurface", "done");
+    private void removeSurfaces() {
+        Log.d("removeSurfaces", "removing grid view");
+        mGridView.setAdapter(null);
+        Log.d("removeSurfaces", "done");
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // grab an interface to our local looper
+        mHandler = new Handler();
+
         setContentView(R.layout.activity_main);
         setAmbientEnabled();
 
-        mOuterContainer = (BoxInsetLayout) findViewById(R.id.top_container);
-        mInnerContainer = (LinearLayout) findViewById(R.id.linear_container);
+        mTextContainer = (RelativeLayout) findViewById(R.id.text_container);
         mTextView = (TextView) findViewById(R.id.text);
         mDebugView = (TextView) findViewById(R.id.dbg);
         mClockView = (TextView) findViewById(R.id.clock);
+        mGridView = (GridViewPager) findViewById(R.id.grid);
+        // mGridView.setBackgroundColor(Color.WHITE);
+        // mGridView.setDrawingCacheBackgroundColor(Color.WHITE);
+        // mGridView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         updateDisplay();
     }
@@ -112,7 +100,7 @@ public class MainActivity extends WearableActivity
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1);
         } else {
-            createSurface();
+            createSurfaces();
         }
 
         Log.d("onStart", "BLE: " + getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE));
@@ -129,7 +117,7 @@ public class MainActivity extends WearableActivity
     public void onRequestPermissionsResult(int rq, @NonNull String[] ps, @NonNull int[] rs) {
         if(rq == 1) {
             if (rs[0] == PackageManager.PERMISSION_GRANTED) {
-                createSurface();
+                createSurfaces();
             } else {
                 mDebugView.setText("No audio");
             }
@@ -139,37 +127,56 @@ public class MainActivity extends WearableActivity
     @Override
     public void onEnterAmbient(Bundle ambientDetails) {
         super.onEnterAmbient(ambientDetails);
+        mHandler.removeCallbacks(updateTimeNotAmbient);
         updateDisplay();
+    }
+
+    @Override
+    public void onExitAmbient() {
+        super.onExitAmbient();
+        updateDisplay();
+        mHandler.postDelayed(updateTimeNotAmbient, TIME_UPDATE_NOT_AMBIENT_PERIOD);
+    }
+
+    private void updateDisplay() {
+        final int black = getResources().getColor(android.R.color.black,null);
+        final int white = getResources().getColor(android.R.color.white,null);
+        updateTime();
+
+        if (isAmbient()) {
+            mTextContainer.setBackgroundColor(black);
+            mTextView.setTextColor(white);
+            mClockView.setTextColor(white);
+            mDebugView.setTextColor(white);
+        } else {
+            mTextContainer.setBackgroundColor(white);
+            mTextView.setTextColor(black);
+            mClockView.setTextColor(black);
+            mDebugView.setTextColor(black);
+        }
     }
 
     @Override
     public void onUpdateAmbient() {
         super.onUpdateAmbient();
-        mClockView.setText(AMBIENT_DATE_FORMAT.format(new Date()));
+        updateTime();
     }
 
-    @Override
-    public void onExitAmbient() {
-        updateDisplay();
-        super.onExitAmbient();
-    }
-
-    private void updateDisplay() {
-        final int black = getResources().getColor(android.R.color.black,null);
-        mClockView.setText(AMBIENT_DATE_FORMAT.format(new Date()));
-
-        if (isAmbient()) {
-            final int white = getResources().getColor(android.R.color.white,null);
-            mOuterContainer.setBackgroundColor(black);
-            mTextView.setTextColor(white);
-            mClockView.setTextColor(white);
-            mDebugView.setTextColor(white);
-        } else {
-            mOuterContainer.setBackground(null);
-            mTextView.setTextColor(black);
-            mClockView.setTextColor(black);
-            mDebugView.setTextColor(black);
+    private Runnable updateTimeNotAmbient = new Runnable() {
+        @Override
+        public void run() {
+            updateTime();
+            mHandler.postDelayed(this, TIME_UPDATE_NOT_AMBIENT_PERIOD);
         }
+    };
+
+    private void updateTime() {
+        mClockView.post(new Runnable() {
+            @Override
+            public void run() {
+                mClockView.setText(AMBIENT_DATE_FORMAT.format(new Date()));
+            }
+        });
     }
 
     @Override
@@ -181,7 +188,7 @@ public class MainActivity extends WearableActivity
     @Override
     public void onStop() {
         Log.d("onStop", "top");
-        removeSurface();
+        removeSurfaces();
         super.onStop();
     }
 

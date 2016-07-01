@@ -1,64 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.wearable.view.BoxInsetLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/top_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="com.acmetensortoys.watchviz.MainActivity"
-    tools:deviceIds="wear">
+    tools:deviceIds="wear"
+    android:id="@+id/outermost"
+    android:background="@color/blue">
 
-    <LinearLayout
-        android:id="@+id/linear_container"
+    <!-- Argh.  Oh boy did I lose a lot of time to this.  The GridViewPager
+    needs to be the first child in the tree so that it gets drawn first.
+    That seems hideously wrong, because it means that it's getting its size
+    information before the relative constraint solver does its thing, but
+    at this point I am exceptionally out of patience for the whole Android
+    UI layer, so here we are. -->
+
+    <!-- TODO Someone still isn't getting their background correct; the watch face
+    bleeds though around the edges of the scrolling.  Have I mentioned that I hate
+    everything ever? -->
+
+    <android.support.wearable.view.GridViewPager
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:id="@+id/grid"
+        android:layout_alignParentLeft="true"
+        android:layout_marginLeft="0dp"
+        android:layout_below="@+id/text_container"
+        android:background="@color/green"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true">
+    </android.support.wearable.view.GridViewPager>
 
-        <RelativeLayout
-            android:orientation="horizontal"
+    <RelativeLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/text_container"
+        android:layout_alignParentLeft="true"
+        android:layout_marginLeft="0dp"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="0dp"
+        android:background="@color/orange"
+        android:transitionGroup="false"
+        android:layout_alignParentRight="true">
+
+        <TextView
+            android:id="@+id/text"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:text="@string/acmetensor"
+            app:layout_box="all"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true" />
 
-            <TextView
-                android:id="@+id/text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/acmetensor"
-                app:layout_box="all"
-                android:layout_alignParentLeft="true"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentStart="true" />
+        <TextView
+            android:text="@string/acmetensor"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/dbg"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:layout_alignParentBottom="false"
+            android:layout_alignParentRight="false"
+            android:layout_alignParentLeft="false"
+            android:layout_alignWithParentIfMissing="false" />
 
-            <TextView
-                android:text="@string/acmetensor"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/dbg"
-                android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"
-                android:layout_alignParentBottom="false"
-                android:layout_alignParentRight="false"
-                android:layout_alignParentLeft="false"
-                android:layout_alignWithParentIfMissing="false" />
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            app:layout_box="all"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="false" />
 
-            <TextView
-                android:id="@+id/clock"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@android:color/white"
-                app:layout_box="all"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentEnd="true"
-                android:layout_alignParentRight="false" />
+    </RelativeLayout>
 
-        </RelativeLayout>
 
-		<!-- Use placeholder? -->
-        <!-- <SurfaceView
-            android:layout_width="match_parent"
-            android:layout_height="fill_parent"
-            android:id="@+id/surface" /> -->
-
-    </LinearLayout>
-
-</android.support.wearable.view.BoxInsetLayout>
+</RelativeLayout>
