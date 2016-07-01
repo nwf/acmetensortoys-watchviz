@@ -1,15 +1,15 @@
-package com.acmetensortoys.watchviz.vizlib.render;
+package com.acmetensortoys.watchviz.vizlib.rendering;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 
-import com.acmetensortoys.watchviz.vizlib.RenderCB;
+import com.acmetensortoys.watchviz.vizlib.Rendering;
 
 import java.util.Locale;
 
-public final class WholeMax extends RenderCB {
+public final class WholeMax extends Rendering {
     private boolean doDebug;
     private final Paint dbp = new Paint();
     private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};

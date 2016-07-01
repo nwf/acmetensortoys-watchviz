@@ -1,13 +1,13 @@
-package com.acmetensortoys.watchviz.vizlib.render;
+package com.acmetensortoys.watchviz.vizlib.rendering;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-import com.acmetensortoys.watchviz.vizlib.RenderCB;
+import com.acmetensortoys.watchviz.vizlib.Rendering;
 import com.acmetensortoys.watchviz.vizlib.meta.Avg;
 
-public final class Grid extends RenderCB {
+public final class Grid extends Rendering {
     private boolean doDebug;
     private final Paint p = new Paint();
     private final Paint dbp = new Paint();

@@ -2,7 +2,7 @@ package com.acmetensortoys.watchviz.vizlib.meta;
 
 import com.acmetensortoys.watchviz.vizlib.Meta;
 
-public class Avg implements Meta {
+public class Avg extends Meta {
     public float window = 0f;
     public int ix = 0;
     public float[] list;

@@ -1,6 +1,6 @@
 package com.acmetensortoys.watchviz.vizlib;
 
-public interface Meta {
-    float get();
-    void update(float last);
+public abstract class Meta {
+    abstract public float get();
+    abstract public void update(float last);
 }

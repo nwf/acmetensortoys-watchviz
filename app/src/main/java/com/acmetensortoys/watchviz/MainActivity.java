@@ -36,6 +36,8 @@ import java.util.Date;
 import java.util.Locale;
 
 import com.acmetensortoys.watchviz.vizlib.AudioCanvas;
+import com.acmetensortoys.watchviz.vizlib.AudioProvider;
+import com.acmetensortoys.watchviz.vizlib.RenderingSelector;
 
 public class MainActivity extends WearableActivity
 {
@@ -47,15 +49,19 @@ public class MainActivity extends WearableActivity
     private TextView mTextView, mClockView, mDebugView;
     private SurfaceView mACSurfaceView;
     private AudioCanvas mAudioCanvas;
+    private AudioProvider mAudioProvider = new AudioProvider();
 
     private void createSurface() {
         Log.d("createSurface", "top");
         mACSurfaceView = new SurfaceView(this);
-        mAudioCanvas = new AudioCanvas(mDebugView, mACSurfaceView);
+        mAudioCanvas = new AudioCanvas(mACSurfaceView, mAudioProvider);
+
+        final RenderingSelector rs = new RenderingSelector(mDebugView, mAudioCanvas);
+
         mTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mAudioCanvas.prevCyclerCB();
+                rs.prevCyclerCB();
             }
         });
         mACSurfaceView.setOnClickListener(new View.OnClickListener(){
@@ -65,7 +71,7 @@ public class MainActivity extends WearableActivity
         mACSurfaceView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                mAudioCanvas.nextCyclerCB();
+                rs.nextCyclerCB();
                 return true;
             }
         });

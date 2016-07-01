@@ -2,7 +2,7 @@ package com.acmetensortoys.watchviz.vizlib.meta;
 
 import com.acmetensortoys.watchviz.vizlib.Meta;
 
-public class Max implements Meta {
+public class Max extends Meta {
     public float window = Float.NEGATIVE_INFINITY;
     public int ix = 0;
     final public float[] list;
