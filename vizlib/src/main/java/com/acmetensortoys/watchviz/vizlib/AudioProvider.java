@@ -85,6 +85,8 @@ public class AudioProvider {
                         ar.onAudio(samples, fft);
                     }
                 }
+                ar.stop();
+                ar.release();
             }
         };
         audioSourceThread.start();
@@ -97,6 +99,7 @@ public class AudioProvider {
                 try {
                     audioSourceThread.join();
                 } catch (InterruptedException ie) {
+                    Log.w("AudioProvider", "join interrupted");
                     ;
                 } finally {
                     audioSourceThread = null;

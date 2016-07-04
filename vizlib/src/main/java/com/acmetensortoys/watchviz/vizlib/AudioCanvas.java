@@ -43,7 +43,17 @@ public class AudioCanvas implements Renderer {
                                     mAp.remove(this);
                                 }
                             }
-                            Canvas cv = h.lockCanvas();
+                            final Canvas cv;
+                            try {
+                                cv = h.lockCanvas();
+                            } catch (IllegalArgumentException iae) {
+                                // Canvas must not exist and we have just somehow missed the
+                                // destroy callback (this sometimes appears to happen when the
+                                // application is in the midst of crashing).  Go ahead and
+                                // unsubscribe us, so the messages at least stop happening.
+                                mAp.remove(this);
+                                return;
+                            }
                             if (cv == null) {
                                 // the surface must have been destroyed out from under us;
                                 // just stop here, on the presumption that we will be
