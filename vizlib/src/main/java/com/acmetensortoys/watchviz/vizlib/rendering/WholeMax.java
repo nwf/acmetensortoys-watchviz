@@ -1,9 +1,11 @@
 package com.acmetensortoys.watchviz.vizlib.rendering;
 
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.graphics.Typeface;
 
 import com.acmetensortoys.watchviz.vizlib.Rendering;
 
@@ -14,9 +16,11 @@ public final class WholeMax extends Rendering {
     private final Paint dbp = new Paint();
     private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
 
-    public WholeMax()
+    public WholeMax(SharedPreferences lsp, SharedPreferences gsp)
     {
+        super(lsp,gsp);
         dbp.setColor(Color.WHITE);
+        dbp.setTypeface(Typeface.MONOSPACE);
     }
 
     @Override

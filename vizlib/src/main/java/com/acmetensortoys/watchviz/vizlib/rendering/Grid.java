@@ -1,14 +1,18 @@
 package com.acmetensortoys.watchviz.vizlib.rendering;
 
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.util.Log;
 
 import com.acmetensortoys.watchviz.vizlib.Rendering;
 import com.acmetensortoys.watchviz.vizlib.meta.Avg;
 
 public final class Grid extends Rendering {
     private boolean doDebug;
+    private boolean doCycle;
     private final Paint p = new Paint();
     private final Paint dbp = new Paint();
     private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
@@ -17,10 +21,38 @@ public final class Grid extends Rendering {
     // to six seconds, which seems fine.
     private Avg meta = new Avg(7);
 
-    public Grid()
+    // Need to hold on to this explicitly because the SharedPreference object only hold
+    // on to it weakly.  That's great, thanks and all, but it's somewhat unexpected.
+    private SharedPreferences.OnSharedPreferenceChangeListener ospcl
+            = new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+            Log.d("GridOSPCL", key);
+            switch(key) {
+                case "debug": debugByPref(sp); break;
+                case "cycle": cycleByPref(sp); break;
+            }
+        }
+    };
+
+    public Grid(SharedPreferences lsp, SharedPreferences gsp)
     {
+        super(lsp,gsp);
         dbp.setColor(Color.WHITE);
+        dbp.setTypeface(Typeface.MONOSPACE);
+
+        lsp.registerOnSharedPreferenceChangeListener(ospcl);
+        debugByPref(lsp);
+        cycleByPref(lsp);
     }
+
+    private void debugByPref(SharedPreferences sp) {
+        doDebug = sp.getBoolean("debug", false);
+    }
+    private void cycleByPref(SharedPreferences sp) {
+        doCycle = sp.getBoolean("cycle", true);
+    }
+
 
     @Override
     public void onClick() {
@@ -29,9 +61,10 @@ public final class Grid extends Rendering {
 
     @Override
     public void render(Canvas cv, float[] au, float[] fft) {
-        int c = Color.HSVToColor(hsv);
-        hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
-        p.setColor(c);
+        p.setColor(Color.HSVToColor(hsv));
+        if(doCycle) {
+            hsv[0] = hsv[0] >= 359 ? 0.0f : hsv[0] + 1.0f;
+        }
 
         float thisFrameSum = 0f;
         final float winAvg = meta.get();

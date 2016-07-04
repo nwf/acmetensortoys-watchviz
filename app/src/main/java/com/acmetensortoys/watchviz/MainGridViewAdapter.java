@@ -23,7 +23,14 @@
 
 package com.acmetensortoys.watchviz;
 
+import android.app.Activity;
+import android.app.Fragment;
+import android.app.FragmentTransaction;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.preference.PreferenceFragment;
+import android.support.wearable.view.FragmentGridPagerAdapter;
 import android.support.wearable.view.GridPagerAdapter;
 import android.support.wearable.view.GridViewPager;
 import android.util.Log;
@@ -42,34 +49,64 @@ public class MainGridViewAdapter
         extends GridPagerAdapter
         implements GridViewPager.OnPageChangeListener {
 
+    private final Activity mAct;    // Also a Context
+    private final AudioProvider mAp;
+    private final TextView mDv;
+    private final Page[][] pages;
+
+    public MainGridViewAdapter(Activity a, AudioProvider ap, TextView dv) {
+        mAct = a;
+        mAp = ap;
+        mDv = dv;
+
+        Page gridPage = new RendererPage(Grid.class,
+                mAct.getSharedPreferences("grid",Context.MODE_PRIVATE));
+        Page wholePage = new RendererPage(WholeMax.class,
+                mAct.getSharedPreferences("whole",Context.MODE_PRIVATE));
+
+        pages = new Page[][]{
+            {gridPage, new FragmentPage(ProgrammablePreferenceFragment
+                            .newInstance(R.xml.pref_grid, "grid"))},
+            {wholePage }
+        };
+    }
+
     /* All returned Objects are actually Pages so we know what to do with them later */
     private abstract static class InstantiatedPage {
         abstract public boolean ownsview(View v);
         abstract public void deinstantiate(MainGridViewAdapter m, ViewGroup g);
     };
-    private static class ViewInstantiatedPage extends InstantiatedPage {
-        public View v;
-        public ViewInstantiatedPage(View v) { this.v = v; }
-        @Override
-        public boolean ownsview(View v2) { return v.equals(v2); }
-        @Override
-        public void deinstantiate(MainGridViewAdapter m, ViewGroup g) { g.removeView(v); }
-    }
     private abstract static class Page {
         public String title;
         abstract public InstantiatedPage instantiate(MainGridViewAdapter m, ViewGroup g, int r, int c);
     }
+
+    /* Some Pages just contain View objects directly */
+    private static class ViewInstantiatedPage extends InstantiatedPage {
+        private final View v;
+        public ViewInstantiatedPage(View v) { this.v = v; }
+        @Override
+        public boolean ownsview(View v2) { return v == v2; }
+        @Override
+        public void deinstantiate(MainGridViewAdapter m, ViewGroup g) { g.removeView(v); }
+    }
     private static class RendererPage extends Page {
-        private Class<? extends Rendering> re;
-        public RendererPage(Class<? extends Rendering> r) {
+        private final Class<? extends Rendering> re;
+        private final SharedPreferences lsp;
+        public RendererPage(Class<? extends Rendering> r, SharedPreferences lsp) {
             this.re = r;
+            this.lsp = lsp;
             this.title = r.getSimpleName();
         }
         public InstantiatedPage instantiate(MainGridViewAdapter mgva, ViewGroup g, int r, int c) {
-            SurfaceView sv = new SurfaceView(mgva.mCtx);
-            AudioCanvas ac = new AudioCanvas(r+"x"+c, sv, mgva.mAp);
+            final SurfaceView sv = new SurfaceView(mgva.mAct);
+            final AudioCanvas ac = new AudioCanvas(r+"x"+c, sv, mgva.mAp);
+            final Rendering rend;
             try {
-                ac.setRendering(re.getConstructor().newInstance());
+                rend = re.getConstructor(SharedPreferences.class, SharedPreferences.class)
+                        .newInstance(lsp,
+                                mgva.mAct.getPreferences(Context.MODE_PRIVATE));
+                ac.setRendering(rend);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -81,21 +118,54 @@ public class MainGridViewAdapter
         }
     }
 
-    private Page gridPage = new RendererPage(Grid.class);
-    private Page wholePage = new RendererPage(WholeMax.class);
-    private final Page[][] pages = {
-            {gridPage, gridPage},
-            {wholePage }
-    };
+    /* And some manage Fragments; note that these require assistance from finishUpdate below */
+    private FragmentTransaction mFT = null;
+    private static class FragmentInstantedPage extends InstantiatedPage {
+        private final Fragment f;
 
-    private final Context mCtx;
-    private final AudioProvider mAp;
-    private final TextView mDv;
+        public FragmentInstantedPage(Fragment f) { this.f = f; }
 
-    public MainGridViewAdapter(Context c, AudioProvider ap, TextView dv) {
-        mCtx = c;
-        mAp = ap;
-        mDv = dv;
+        @Override
+        public boolean ownsview(View v) {
+            return v == f.getView();
+        }
+
+        @Override
+        public void deinstantiate(MainGridViewAdapter m, ViewGroup g) {
+            m.startFragmentTransaction().remove(f);
+        }
+    }
+    private static class FragmentPage extends Page {
+        private final Fragment f;
+        public FragmentPage(Fragment f) { this.f = f; }
+
+        @Override
+        public InstantiatedPage instantiate(MainGridViewAdapter m, ViewGroup g, int r, int c) {
+            m.startFragmentTransaction().add(g.getId(),f);
+            return new FragmentInstantedPage(f);
+        }
+    }
+
+    public static class ProgrammablePreferenceFragment extends PreferenceFragment {
+        private final static String ARG_RES_IX = "res";
+        private final static String ARG_PREF_IX = "pref";
+
+        public static ProgrammablePreferenceFragment newInstance(int res, String pref) {
+            ProgrammablePreferenceFragment f = new ProgrammablePreferenceFragment();
+            Bundle args = new Bundle();
+            args.putInt(ARG_RES_IX,res);
+            args.putString(ARG_PREF_IX,pref);
+            f.setArguments(args);
+            return f;
+        }
+
+        @Override
+        public void onCreate(Bundle sis) {
+            super.onCreate(sis);
+            getPreferenceManager().setSharedPreferencesName(getArguments().getString(ARG_PREF_IX));
+            Log.d("PPF", "sp="+getPreferenceManager().getSharedPreferences().toString());
+            addPreferencesFromResource(getArguments().getInt(ARG_RES_IX));
+        }
     }
 
     @Override
@@ -136,10 +206,24 @@ public class MainGridViewAdapter
         super.startUpdate(container);
     }
 
+    FragmentTransaction startFragmentTransaction() {
+        if(mFT != null) { return mFT; }
+        return (mFT = mAct.getFragmentManager().beginTransaction());
+    }
+
     @Override
     public void finishUpdate(ViewGroup container) {
-        // super.finishUpdate(container);
-        Log.d("MGVA", "finishUpdate bottom");
+        if (mAct.getFragmentManager().isDestroyed()) {
+            mFT = null;
+        } else if (mFT != null) {
+            mFT.commitAllowingStateLoss();
+            mFT = null;
+            mAct.getFragmentManager().executePendingTransactions();
+            container.postInvalidate(); // TODO: does this help and if so why?
+        }
+
+        super.finishUpdate(container);
+        //Log.d("MGVA", "finishUpdate bottom");
     }
 
     @Override
@@ -151,12 +235,14 @@ public class MainGridViewAdapter
     public void onPageSelected(int row, int col) {
         // Log.d("MGVA", "selected");
         final String name = pages[row][col].title;
-        mDv.post(new Runnable() {
-            @Override
-            public void run() {
-                mDv.setText(name.substring(0, Math.min(10, name.length())));
-            }
-        });
+        if (name != null) {
+            mDv.post(new Runnable() {
+                @Override
+                public void run() {
+                    mDv.setText(name.substring(0, Math.min(10, name.length())));
+                }
+            });
+        }
     }
 
     @Override
