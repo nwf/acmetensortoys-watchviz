@@ -39,6 +39,11 @@ import java.util.Date;
 import java.util.Locale;
 
 import com.acmetensortoys.watchviz.vizlib.AudioProvider;
+import com.acmetensortoys.watchviz.vizlib.rendering.Grid;
+import com.acmetensortoys.watchviz.vizlib.rendering.WholeMax;
+import com.acmetensortoys.watchviz.vizlib.util.FragmentPage;
+import com.acmetensortoys.watchviz.vizlib.util.Page;
+import com.acmetensortoys.watchviz.vizlib.util.RendererPage;
 
 public class MainActivity extends WearableActivity
 {
@@ -53,9 +58,21 @@ public class MainActivity extends WearableActivity
 
     private GridViewPager mGridView;
 
+    Page[][] pages = new Page[][]
+            {
+                    {new RendererPage(Grid.class, "grid"),
+                            FragmentPage.makeProgrammablePreferencePage(R.xml.pref_grid, "grid", "grid pref")},
+
+                    {new RendererPage(WholeMax.class, "whole")},
+
+                    /* {MainGridViewAdapter.makeProgrammablePreferencePage(R.xml.pref_grid,
+                            MainGridViewAdapter.RENDERER_GLOBAL_SHARED_PREF_NAME,
+                            "global")} */
+            };
+
     private void createSurfaces() {
         Log.d("createSurfaces", "top");
-        MainGridViewAdapter mgva = new MainGridViewAdapter(this, mAudioProvider, mDebugView);
+        MainGridViewAdapter mgva = new MainGridViewAdapter(this, mAudioProvider, mDebugView, pages);
         mGridView.setOnPageChangeListener(mgva);
         mGridView.setAdapter(mgva);
         // Fake the selection callback.  Why doesn't this happen automatically? :(
