@@ -16,6 +16,7 @@ public final class Grid extends Rendering {
     private final Paint p = new Paint();
     private final Paint dbp = new Paint();
     private float[] hsv = new float[]{0.0f, 1.0f, 1.0f};
+    private final SharedPreferences lsp;
 
     // 2^7 == 128 frames, at 512 samples per frame and 11025 KHz, this works out
     // to six seconds, which seems fine.
@@ -29,8 +30,8 @@ public final class Grid extends Rendering {
         public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
             Log.d("GridOSPCL", key);
             switch(key) {
-                case "debug": debugByPref(sp); break;
-                case "cycle": cycleByPref(sp); break;
+                case "debug": debugByPref(); break;
+                case "cycle": cycleByPref(); break;
             }
         }
     };
@@ -41,22 +42,24 @@ public final class Grid extends Rendering {
         dbp.setColor(Color.WHITE);
         dbp.setTypeface(Typeface.MONOSPACE);
 
+        this.lsp = lsp;
         lsp.registerOnSharedPreferenceChangeListener(ospcl);
-        debugByPref(lsp);
-        cycleByPref(lsp);
+        debugByPref();
+        cycleByPref();
     }
 
-    private void debugByPref(SharedPreferences sp) {
-        doDebug = sp.getBoolean("debug", false);
+    private void debugByPref() {
+        doDebug = lsp.getBoolean("debug", false);
     }
-    private void cycleByPref(SharedPreferences sp) {
-        doCycle = sp.getBoolean("cycle", true);
+    private void cycleByPref() {
+        doCycle = lsp.getBoolean("cycle", true);
     }
 
 
     @Override
     public void onClick() {
         doDebug = !doDebug;
+        lsp.edit().putBoolean("debug", doDebug).apply();
     }
 
     @Override
