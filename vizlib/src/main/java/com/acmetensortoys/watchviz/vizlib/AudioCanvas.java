@@ -70,7 +70,6 @@ public class AudioCanvas implements Renderer {
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                 Log.d("shc:"+debug1, "Surface Changed:"+format+":"+width+":"+height);
-                ;
             }
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {

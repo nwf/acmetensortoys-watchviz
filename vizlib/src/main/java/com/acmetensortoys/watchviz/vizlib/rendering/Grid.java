@@ -21,7 +21,7 @@ public final class Grid extends Rendering {
     // to six seconds, which seems fine.
     private Avg meta = new Avg(7);
 
-    // Need to hold on to this explicitly because the SharedPreference object only hold
+    // Need to hold on to this explicitly because the SharedPreference object only holds
     // on to it weakly.  That's great, thanks and all, but it's somewhat unexpected.
     private SharedPreferences.OnSharedPreferenceChangeListener ospcl
             = new SharedPreferences.OnSharedPreferenceChangeListener() {
@@ -92,4 +92,4 @@ public final class Grid extends Rendering {
 
         meta.update(thisFrameSum/64);
     }
-};
+}

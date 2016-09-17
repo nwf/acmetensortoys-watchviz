@@ -50,4 +50,4 @@ public final class WholeMax extends Rendering {
             cv.drawText(String.format(Locale.US, "%1$8.1E @ %2$d", msamp, mix), 30, 30, dbp);
         }
     }
-};
+}

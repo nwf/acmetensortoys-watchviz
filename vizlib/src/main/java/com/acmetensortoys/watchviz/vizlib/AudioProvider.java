@@ -100,7 +100,6 @@ public class AudioProvider {
                     audioSourceThread.join();
                 } catch (InterruptedException ie) {
                     Log.w("AudioProvider", "join interrupted");
-                    ;
                 } finally {
                     audioSourceThread = null;
                 }

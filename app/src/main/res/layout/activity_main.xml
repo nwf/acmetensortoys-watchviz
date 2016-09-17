@@ -6,8 +6,8 @@
     android:layout_height="match_parent"
     tools:context="com.acmetensortoys.watchviz.MainActivity"
     tools:deviceIds="wear"
-    android:id="@+id/outermost"
-    android:background="@color/blue">
+    android:id="@+id/outermost">
+    <!-- Possible overdraw warning if this is added?  android:background="@color/blue" -->
 
     <!-- Argh.  Oh boy did I lose a lot of time to this.  The GridViewPager
     needs to be the first child in the tree so that it gets drawn first.
