@@ -23,7 +23,8 @@ public class AudioProvider {
     public void add(AudioReceiver ar) {
         synchronized(this) {
             boolean empty = audioReceivers.isEmpty();
-            boolean did = audioReceivers.add(ar);
+            Set<AudioReceiver> nextar = new HashSet<>(audioReceivers);
+            boolean did = nextar.add(ar);
 
             if (empty) {
                 Log.d("AudioProvider", "Starting audio source thread...");
@@ -31,16 +32,19 @@ public class AudioProvider {
             } else if (did) {
                 Log.d("AudioProvider", "Added receiver; now=" + audioReceivers.size());
             }
+            audioReceivers = nextar;
         }
     }
     public void remove(AudioReceiver ar) {
         synchronized(this) {
-            boolean did = audioReceivers.remove(ar);
+            Set<AudioReceiver> nextar = new HashSet<>(audioReceivers);
+            boolean did = nextar.remove(ar);
             if(!did) {
-                // Nothing to do!
+                // Nothing to do, no need to update anything.
                 return;
             }
-            if(audioReceivers.isEmpty()) {
+            audioReceivers = nextar;
+            if(nextar.isEmpty()) {
                 Log.d("AudioProvider", "Stopping audio source thread...");
                 this.stop();
             } else {
@@ -70,16 +74,14 @@ public class AudioProvider {
 
                 ar.startRecording();
                 while (!Thread.interrupted()) {
-                    final Rendering rcb;
                     ar.read(samples, 0, samples.length, AudioRecord.READ_BLOCKING);
                     System.arraycopy(samples, 0, fft, 0, AUDIO_SAMPLES);
                     fftc.realForward(fft);
 
-                    // Snapshot the current callbacks and iterate that.  This prevents
-                    // concurrent mutation exceptions, at the cost of being kind of terrible.
+                    // Grab a pointer to the current set and iterate that.
                     Set<AudioReceiver> ars;
                     synchronized(this) {
-                        ars = new HashSet<>(audioReceivers);
+                        ars = audioReceivers;
                     }
                     for (AudioReceiver ar : ars) {
                         ar.onAudio(samples, fft);
